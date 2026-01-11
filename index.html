@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoHub PRO</title>
+
+<style>
+body{
+    margin:0;
+    font-family:system-ui;
+    background:#0b0e1a;
+    color:white;
+}
+header{
+    background:linear-gradient(90deg,#ff0080,#7928ca);
+    padding:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+main{padding:12px}
+input,button{
+    padding:6px;
+    border-radius:6px;
+    border:none;
+}
+button{
+    background:#ff2e88;
+    color:white;
+    cursor:pointer;
+}
+.card{
+    background:#161a33;
+    padding:10px;
+    border-radius:10px;
+    margin-bottom:12px;
+}
+img,video{
+    width:100%;
+    border-radius:8px;
+}
+.comment{
+    background:#22265a;
+    padding:6px;
+    margin-top:4px;
+    border-radius:6px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <b>🎬 VideoHub PRO</b>
+    <div>
+        <input id="name" placeholder="Імʼя">
+        <button onclick="login()">Вхід</button>
+        <span id="user"></span>
+    </div>
+</header>
+
+<main>
+
+<h3>📤 Завантажити відео</h3>
+<input type="file" id="video" accept="video/*">
+<input type="file" id="cover" accept="image/*">
+<button onclick="upload()">Завантажити</button>
+
+<hr>
+
+<input id="search" placeholder="🤖 AI пошук" oninput="aiSearch()">
+
+<button onclick="analytics()">📊 AI Аналітика</button>
+
+<hr>
+
+<div id="videos"></div>
+
+<h3>👑 Адмін</h3>
+<input id="adminPass" placeholder="Пароль">
+<button onclick="adminLogin()">Увійти</button>
+<div id="admin"></div>
+
+</main>
+
+<script>
+let user = localStorage.getItem("user") || "";
+let videos = JSON.parse(localStorage.getItem("videos")||"[]");
+let interests = JSON.parse(localStorage.getItem("interests")||"{}");
+let isAdmin = false;
+
+const covers = [
+ "https://picsum.photos/400/200?1",
+ "https://picsum.photos/400/200?2",
+ "https://picsum.photos/400/200?3"
+];
+
+document.getElementById("user").innerText = user ? "👤 "+user : "";
+
+function login(){
+    if(!name.value) return;
+    localStorage.setItem("user",name.value);
+    location.reload();
+}
+
+function upload(){
+    if(!user) return alert("Увійди");
+    const v = video.files[0];
+    if(!v) return;
+
+    videos.push({
+        video:URL.createObjectURL(v),
+        cover: cover.files[0]
+            ? URL.createObjectURL(cover.files[0])
+            : covers[Math.floor(Math.random()*covers.length)],
+        likes:0,
+        views:0,
+        comments:[],
+        author:user,
+        time:Date.now()
+    });
+    save();
+}
+
+function like(i){
+    videos[i].likes++;
+    interests[videos[i].author]=(interests[videos[i].author]||0)+1;
+    localStorage.setItem("interests",JSON.stringify(interests));
+    save();
+}
+
+function view(i){
+    videos[i].views++;
+    save(false);
+}
+
+const banned=["мат","ідіот","дурень"];
+function comment(i){
+    const t=prompt("Коментар");
+    if(!t) return;
+    if(banned.some(w=>t.toLowerCase().includes(w)))
+        return alert("🤖 AI: заборонено");
+    videos[i].comments.push(user+": "+t);
+    save();
+}
+
+function aiScore(v){
+    const age=(Date.now()-v.time)/1000000;
+    const boost=interests[v.author]?interests[v.author]*2:0;
+    return v.likes*3+v.views*2+boost-age;
+}
+
+function render(list=videos){
+    videos.sort((a,b)=>aiScore(b)-aiScore(a));
+    videosBox.innerHTML="";
+    list.forEach((v,i)=>{
+        videosBox.innerHTML+=`
+        <div class="card">
+            <img src="${v.cover}">
+            <video controls src="${v.video}" onplay="view(${i})"></video>
+            ❤️ ${v.likes} | 👀 ${v.views}
+            <br>
+            🤖 AI: ${Math.floor(aiScore(v))}
+            <br>
+            <button onclick="like(${i})">Лайк</button>
+            <button onclick="comment(${i})">Комент</button>
+            ${isAdmin?`<button onclick="del(${i})">❌</button>`:""}
+            ${v.comments.map(c=>`<div class="comment">${c}</div>`).join("")}
+        </div>`;
+    });
+}
+
+function aiSearch(){
+    const q=search.value.toLowerCase();
+    render(videos.filter(v=>v.author.toLowerCase().includes(q)));
+}
+
+function analytics(){
+    alert(`🤖 AI Аналітика
+Відео: ${videos.length}
+Перегляди: ${videos.reduce((a,v)=>a+v.views,0)}
+Лайки: ${videos.reduce((a,v)=>a+v.likes,0)}`);
+}
+
+function adminLogin(){
+    if(adminPass.value==="admin123"){
+        isAdmin=true;
+        admin.innerText="👑 Адмін активний";
+        render();
+    }
+}
+
+function del(i){
+    videos.splice(i,1);
+    save();
+}
+
+function save(r=true){
+    localStorage.setItem("videos",JSON.stringify(videos));
+    if(r) render();
+}
+
+const videosBox=document.getElementById("videos");
+render();
+</script>
+
+</body>
+</html>
